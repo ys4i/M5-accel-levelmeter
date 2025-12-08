@@ -4,7 +4,7 @@ M5StickC Plus2 の加速度を使い、NeoPixel（GPIO32接続）を双方向VU�
 
 ## 必要なもの
 - M5StickC Plus2 本体
-- NeoPixel（Unit NeoHEX等）LED 60本（デフォルト）
+- NeoPixel（Unit NeoHEX等）LED 30本（デフォルト）
 - Arduino IDE 2.x + M5StickC Plus2 ボード設定
 - ライブラリ: `M5Unified`, `Adafruit_NeoPixel`
 
@@ -14,9 +14,10 @@ M5StickC Plus2 の加速度を使い、NeoPixel（GPIO32接続）を双方向VU�
 
 ## 主な仕様
 - キャリブレーション: BtnA 長押し（約700ms）で実行。サンプル数200。結果はRAMのみ保持（電源断で消失）。
-- 表示: 重力方向の増減を射影し、EMA平滑化(alpha=0.3)後にレベル化。未使用LEDは弱く点灯してグラデを滑らかに表示。
+- 表示: 重力方向の増減を射影し、EMA平滑化(alpha=0.3)後にレベル化。未使用LEDはデフォルトで消灯（必要なら `dim_unused=true` で弱点灯）。
 - 更新周期: 20Hz。
 - 配色: 中心緑、正側は緑→黄→赤、負側は緑→青→紫。
+- 肩掛けミラー表示: テープを2ブロックに分割し、前面・背面どちらから見ても「負→中心→正, 正→中心→負」で同じパターンを表示する `render_mode=RENDER_SHOULDER_MIRROR` を追加（デフォルトは従来の中心分割 `RENDER_CENTER`）。
 - デバッグ表示: `ENABLE_DEBUG` をビルド時に1で定義するとLCDへdelta/levelを表示。
 
 ## 設定値（コード内で変更）
@@ -30,7 +31,8 @@ Config config = {
   .g_range_neg = 1.0f,   // 負側のレンジ[g]
   .alpha = 0.3f,         // EMA係数（小さくすると滑らか、大きいと速応答）
   .update_hz = 20,       // 更新周期[Hz]
-  .dim_unused = true,    // 未使用LEDを弱点灯
+  .dim_unused = false,   // 未使用LEDを消灯（弱点灯させたい場合は true に）
+  .render_mode = RENDER_CENTER, // 肩掛け用にする場合は RENDER_SHOULDER_MIRROR
 };
 ```
 

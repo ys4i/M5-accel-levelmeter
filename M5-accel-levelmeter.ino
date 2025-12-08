@@ -7,13 +7,18 @@
 
 // Set to 1 at build time to enable on-screen debug.
 #ifndef ENABLE_DEBUG
-#define ENABLE_DEBUG 0
+#define ENABLE_DEBUG 1
 #endif
 
 // Hardware config
 static const int LED_PIN = 32;         // NeoPixel data pin
 static const int CAL_SAMPLES = 200;    // Calibration sample count
 static const uint32_t CAL_HOLD_MS = 700; // BtnA long-press threshold
+
+enum RenderMode {
+  RENDER_CENTER = 0,
+  RENDER_SHOULDER_MIRROR = 1,
+};
 
 struct Config {
   int led_count;
@@ -23,6 +28,7 @@ struct Config {
   float alpha;
   int update_hz;
   bool dim_unused;
+  RenderMode render_mode;
 };
 
 struct Calibration {
@@ -40,7 +46,8 @@ Config config = {
   .g_range_neg = 1.0f,
   .alpha = 0.3f,
   .update_hz = 20,
-  .dim_unused = true,
+  .dim_unused = false,
+  .render_mode = RENDER_SHOULDER_MIRROR,
 };
 
 Adafruit_NeoPixel strip(config.led_count, LED_PIN, NEO_GRB + NEO_KHZ800);
@@ -115,7 +122,7 @@ void normalize(float v[3]) {
   }
 }
 
-void renderLevel(float level_pos, float level_neg) {
+void renderLevelCenter(float level_pos, float level_neg) {
   strip.clear();
 
   const uint32_t center_color = makeColor(0, 255, 0);
@@ -154,6 +161,66 @@ void renderLevel(float level_pos, float level_neg) {
   }
 
   strip.show();
+}
+
+void renderHalf(int start, int len, bool start_is_positive, float level_pos, float level_neg) {
+  const uint32_t center_color = makeColor(0, 255, 0);
+  const float dim_factor = config.dim_unused ? 0.08f : 0.0f;
+
+  const bool even = (len % 2 == 0);
+  const int center_right = start + len / 2;
+  const int center_left = even ? center_right - 1 : center_right;
+
+  const int left_span = center_left - start;
+  const int right_span = start + len - 1 - center_right;
+
+  strip.setPixelColor(center_right, center_color);
+  if (even) {
+    strip.setPixelColor(center_left, center_color);
+  }
+
+  for (int i = 0; i < left_span; ++i) {
+    int idx = center_left - 1 - i;
+    float t = (left_span > 0) ? (float)(i + 1) / (float)left_span : 0.0f;
+    bool pos_side = start_is_positive;
+    bool lit = pos_side ? (i < (int)floorf(level_pos * left_span + 1e-4f))
+                        : (i < (int)floorf(level_neg * left_span + 1e-4f));
+    uint32_t base = pos_side ? gradPositive(t) : gradNegative(t);
+    strip.setPixelColor(idx, lit ? base : scaleColor(base, dim_factor));
+  }
+
+  for (int i = 0; i < right_span; ++i) {
+    int idx = center_right + 1 + i;
+    float t = (right_span > 0) ? (float)(i + 1) / (float)right_span : 0.0f;
+    bool pos_side = !start_is_positive;
+    bool lit = pos_side ? (i < (int)floorf(level_pos * right_span + 1e-4f))
+                        : (i < (int)floorf(level_neg * right_span + 1e-4f));
+    uint32_t base = pos_side ? gradPositive(t) : gradNegative(t);
+    strip.setPixelColor(idx, lit ? base : scaleColor(base, dim_factor));
+  }
+}
+
+void renderLevelShoulder(float level_pos, float level_neg) {
+  strip.clear();
+
+  // Split tape into two blocks so both faces show the same pattern.
+  const int first_len = config.led_count / 2;
+  const int second_len = config.led_count - first_len;
+
+  // Front block: negative -> center -> positive
+  renderHalf(0, first_len, false, level_pos, level_neg);
+  // Back block: positive -> center -> negative
+  renderHalf(first_len, second_len, true, level_pos, level_neg);
+
+  strip.show();
+}
+
+void renderLevel(float level_pos, float level_neg) {
+  if (config.render_mode == RENDER_SHOULDER_MIRROR) {
+    renderLevelShoulder(level_pos, level_neg);
+  } else {
+    renderLevelCenter(level_pos, level_neg);
+  }
 }
 
 void showCalibratingDisplay() {
@@ -213,7 +280,6 @@ void setup() {
   auto cfg = M5.config();
   cfg.external_imu = false;
   M5.begin(cfg);
-  M5.Imu.setAccRange(M5.Imu.getAccRange()); // ensure IMU initialized
 
   strip.begin();
   strip.setBrightness(config.brightness_max);
