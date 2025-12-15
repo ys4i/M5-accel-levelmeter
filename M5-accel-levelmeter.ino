@@ -41,7 +41,7 @@ struct Calibration {
 // Default config (modifiable in code; not persisted)
 Config config = {
   .led_count = 60,
-  .brightness_max = 128,
+  .brightness_max = 255,
   .g_range_pos = 1.0f,
   .g_range_neg = 1.0f,
   .alpha = 0.3f,
@@ -51,6 +51,8 @@ Config config = {
 };
 
 Adafruit_NeoPixel strip(config.led_count, LED_PIN, NEO_GRB + NEO_KHZ800);
+// Center LED color; change this single line to adjust both renderers.
+uint32_t center_color = strip.Color(255, 0, 0);
 Calibration calib = {};
 
 float delta_filt = 0.0f;
@@ -125,7 +127,6 @@ void normalize(float v[3]) {
 void renderLevelCenter(float level_pos, float level_neg) {
   strip.clear();
 
-  const uint32_t center_color = makeColor(0, 255, 0);
   const float dim_factor = config.dim_unused ? 0.08f : 0.0f;
 
   const bool even = (config.led_count % 2 == 0);
@@ -164,7 +165,6 @@ void renderLevelCenter(float level_pos, float level_neg) {
 }
 
 void renderHalf(int start, int len, bool start_is_positive, float level_pos, float level_neg) {
-  const uint32_t center_color = makeColor(0, 255, 0);
   const float dim_factor = config.dim_unused ? 0.08f : 0.0f;
 
   const bool even = (len % 2 == 0);

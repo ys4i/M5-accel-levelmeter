@@ -36,6 +36,15 @@ Config config = {
 };
 ```
 
+### 中心LEDの色を変える
+`M5-accel-levelmeter.ino` 冒頭で `center_color` というグローバル変数を定義しています。
+
+```cpp
+uint32_t center_color = strip.Color(0, 255, 0);
+```
+
+この1行の RGB 値を書き換えるだけで、`renderLevelCenter()` と `renderHalf()` の両方で使われる中心LED（偶数本なら中心2発）の色を一括で変更できます。`strip.Color(r, g, b)` は NeoPixel の GRB 配列を意識せず設定できるヘルパーなので、必要な色に応じて `r/g/b` の値を調整してください。
+
 その他の調整:
 - キャリブレーション長押し時間: `CAL_HOLD_MS`（デフォルト700ms）
 - キャリブレーションサンプル数: `CAL_SAMPLES`（デフォルト200）
